@@ -1,0 +1,16 @@
+# 本项目以独立脚本形式提供（python tools/xxx.py），这里只放工具链配置。
+# 依赖见 requirements.txt / requirements-dev.txt。
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["tools", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# 中文全角标点出现在字符串和注释里是正常的
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -23,3 +23,15 @@
    - 不仅在耗时上带来数量级的飞跃，更重要的是**根除了 OCR 对工程数字与英文代号的误识别**风险。
 2. **纯扫描件与图像型 PDF**：
    - Fast 模式无效（输出 0 字节），此时必须无缝回退到版面识别模型（MinerU 等）。
+
+---
+
+## 3. 补充基准数据的建议格式
+
+欢迎用自己的样本补充数据。为了让数字可比，请同时记录：
+
+- 硬件与系统（CPU 型号 / 内存 / GPU，macOS 或 Linux 版本）；
+- 引擎版本（`opendataloader-pdf` 版本与 Java 版本、MinerU 版本与 tier）；
+- 样本特征：页数、文件大小、`classify.py` 的 `document_type` 与 `page_classes`；
+- 准确率口径：建议以 fast 抽取结果为参照，用 `tools/qa_check.py ocr.md --against fast.md` 统计数字缺失/多出个数，代替主观的"准确率百分比"。
+

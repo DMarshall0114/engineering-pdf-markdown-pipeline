@@ -1,0 +1,5 @@
+pytest>=7
+ruff>=0.5
+reportlab>=4.0     # 生成合成测试 PDF
+pillow>=10
+pypdfium2>=4.20

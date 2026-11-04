@@ -1,0 +1,5 @@
+# classify.py 需要以下 PDF 后端之一（自动选择，PyMuPDF 优先）：
+pymupdf>=1.23        # AGPL-3.0，功能最全
+# pypdfium2>=4.20    # Apache-2.0/BSD，许可证敏感场景用它替代 PyMuPDF
+
+# 其余工具（clean_transcript / rebuild_headings / qa_check / add_frontmatter）只用标准库。
