@@ -15,7 +15,13 @@ python tools/doctor.py --json   # 给 Agent 读
 ```
 
 它只读不改，报告本机**实际**具备的能力：PDF 后端、OpenDataLoader 与 Java 版本、MinerU CLI、qpdf、keyring、
-MinerU token（只报告是否存在和长度）、配置文件与白名单目录是否存在，并给出建议。
+MinerU token（只报告是否存在和长度）、配置文件、白名单与排除名单，并给出建议。
+`--strict` 时关键项不满足（无 PDF 后端、配置读不出、ODL 缺 Java 11+、白名单目录不存在）以退出码 1 结束；
+默认只出报告、总是返回 0，脚本和 Agent 不要只看退出码。
+
+Java 按 `JAVA_HOME` → `PATH` → macOS `/usr/libexec/java_home` 的顺序查找。macOS 的 `/usr/bin/java` 只是占位程序，
+Homebrew 安装的 `openjdk@21` 是 keg-only、不会自动注册，调用 opendataloader-pdf 前要设置
+`JAVA_HOME=$(brew --prefix openjdk@21)`，否则它会静默退化。
 不要照搬另一台机器的结论——同一个 skill，Mac 上有 CLI 和云 API，Windows 办公机上可能只有图形版。
 
 ## 2. 配置文件位置
@@ -33,6 +39,8 @@ MinerU token（只报告是否存在和长度）、配置文件与白名单目�
 | 键 | 含义 |
 |---|---|
 | `cloud_allowed_dirs` | 允许上传云 API 的目录（公开规范、出版物）。**未配置时一律拒绝上传** |
+| `cloud_denied_dirs` | 排除的目录，**优先于白名单**，任何参数都不能绕过 |
+| `cloud_denied_patterns` | 排除的通配符，逐层匹配路径中的目录名和文件名，如 `"*企业标准*"`、`"*内部*"`。公开资料目录里常夹着内部文件，按名称挡住比逐个列目录可靠 |
 | `output_dir` | `mineru_cloud.py` 的默认输出目录 |
 | `mineru.*` | 云 API 地址、模型、语言、单文件页数上限、轮询间隔、超时、钥匙串条目名 |
 

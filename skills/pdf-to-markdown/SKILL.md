@@ -12,8 +12,11 @@ platforms: [windows, macos, linux]
 ## 0. 每台机器第一次用：自检
 
 ```bash
-python $REPO/tools/doctor.py --json
+python $REPO/tools/doctor.py --json            # 只出报告，退出码总是 0
+python $REPO/tools/doctor.py --strict --json   # 关键项不满足时退出码 1
 ```
+
+Java 按 JAVA_HOME → PATH →（macOS）/usr/libexec/java_home 查找；输出里的 `tried` 列出被跳过的候选。
 
 按结果决定本机能走哪些路，**不要假设别的机器上的能力在这里也有**：
 - 没有 OpenDataLoader 或 Java < 11 → 文本页改用 PyMuPDF 直接抽取；
@@ -48,8 +51,10 @@ python $REPO/tools/mineru_cloud.py 文件.pdf --classify-json classify.json -o �
 ```
 
 规则：
-- 能否上传**只看文件所在目录**是否在配置 `cloud_allowed_dirs` 内，不要自己判断内容是否涉密。
+- 能否上传**只看配置**，不要自己判断内容是否涉密：在 `cloud_allowed_dirs` 内、且不命中排除名单
+  （`cloud_denied_dirs` / `cloud_denied_patterns`）才能上传。排除名单优先，任何参数都不能绕过。
   不在白名单、又不确定时，**先问用户**；用户明确同意后才加 `--allow-outside-whitelist`。
+- 配置或调整白名单前，先列出各目录的一级子目录给用户过目；名称带"企业标准、内部、院发"等的子目录要么排除，要么问用户。
 - 整本（或 `segments` 页段）一次提交，不要逐页提交。
 - token 只从环境变量或系统钥匙串读取；汇报时只说"读取成功、长度 N"，不显示任何字符。
 - 退出码：0 成功，1 参数/配置，3 API/网络，4 质检未过，5 白名单拒绝。
@@ -64,12 +69,21 @@ python $REPO/tools/mineru_cloud.py 文件.pdf --classify-json classify.json -o �
 
 ## 4. 质检（每次都做）
 
+先清洗（fast 抽取的结果常混进页眉页脚、"姓名(工号)部门 时间"签署水印，或双栏断词空格）：
+
+```bash
+python $REPO/tools/clean_transcript.py 结果.md -o 结果.clean.md --reflow --report 删除行.txt --strict
+```
+
+再检查：
+
 ```bash
 python $REPO/tools/qa_check.py 结果.md --clauses --forbid "<已知错字>" --strict
 python $REPO/tools/qa_check.py 结果_ocr.md --against 结果_fast.md     # 两个版本比数字
 ```
 
-- **禁用串**：扫描件旧 OCR 层里核实过的错字不得出现，出现即说明沿用了旧层。
+- **禁用串**：扫描件旧 OCR 层里核实过的错字不得出现，出现即说明沿用了旧层。只填旧层**特有**的错字，
+  不要填原文本来就有的内容（如签署水印），否则全是假阳性。
 - **条文连续性**：每节 x.y.z 从 1 起连续；跳号、重号逐个渲染原页核对（规范本身也可能删条）。
 - **逐页字数**：`mineru_cloud.py` 自动比对新结果与原文字层的每页汉字数，比值 <0.8 或 >1.2 的页要核对。
 - 统计字数用汉字数，不用字节数（UTF-8 一个汉字 3 字节）。

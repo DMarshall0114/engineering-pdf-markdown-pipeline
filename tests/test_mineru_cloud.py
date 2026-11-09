@@ -238,3 +238,65 @@ def test_doctor_collect_runs_and_hides_token(monkeypatch):
     assert r["mineru_token"]["found"] and r["mineru_token"]["length"] == len("sk-hidden-123")
     assert "sk-hidden-123" not in json.dumps(r, ensure_ascii=False)
     assert isinstance(advice(r), list)
+
+
+# ------------------------------------------------------------ v0.3.1：排除名单 / doctor
+def test_denied_dirs_and_patterns(tmp_path):
+    pub = tmp_path / "常用规范"
+    internal = pub / "【09】企业标准"
+    internal.mkdir(parents=True)
+    (internal / "院内发文.pdf").write_bytes(b"x")
+    (pub / "GB 50157.pdf").write_bytes(b"x")
+    assert mc.denied_reason(internal / "院内发文.pdf", [], ["*企业标准*"])
+    assert mc.denied_reason(internal / "院内发文.pdf", [str(internal)], [])
+    assert mc.denied_reason(pub / "GB 50157.pdf", [str(internal)], ["*企业标准*"]) is None
+    assert mc.denied_reason(tmp_path / "x" / "内部资料.pdf", [], ["*内部*"])  # 文件名也匹配
+
+
+def test_cli_deny_overrides_whitelist_and_flag(tmp_path, capsys):
+    pub = tmp_path / "pub"
+    internal = pub / "企业标准"
+    internal.mkdir(parents=True)
+    pdf = internal / "a.pdf"
+    pdf.write_bytes(b"%PDF")
+    cfg = tmp_path / "c.json"
+    cfg.write_text(json.dumps({"cloud_allowed_dirs": [str(pub)], "cloud_denied_patterns": ["*企业标准*"]}),
+                   encoding="utf-8")
+    code = mc.main([str(pdf), "--config", str(cfg), "--dry-run", "--allow-outside-whitelist"])
+    assert code == mc.EXIT_REFUSED
+    assert "排除" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="用 shell 脚本模拟 java")
+def test_find_java_prefers_java_home(tmp_path, monkeypatch):
+    import doctor
+
+    home = tmp_path / "jdk"
+    (home / "bin").mkdir(parents=True)
+    fake = home / "bin" / "java"
+    fake.write_text('#!/bin/sh\necho \'openjdk version "21.0.2" 2024-01-16\' 1>&2\n', encoding="utf-8")
+    fake.chmod(0o755)
+    stub_dir = tmp_path / "stub"
+    stub_dir.mkdir()
+    stub = stub_dir / "java"
+    stub.write_text('#!/bin/sh\necho "Unable to locate a Java Runtime." 1>&2\nexit 1\n', encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", str(stub_dir))
+
+    j = doctor.find_java({"JAVA_HOME": str(home)})
+    assert j["major"] == 21 and j["source"] == "JAVA_HOME"
+
+    # 不让 macOS runner 上真实注册的 JDK（/usr/libexec/java_home）参与这一段
+    monkeypatch.setattr(doctor.sys, "platform", "linux")
+    j = doctor.find_java({})
+    assert j["major"] is None and any("解析不出版本" in t or "占位" in t for t in j["tried"])
+
+
+def test_doctor_strict_exit_code(monkeypatch, tmp_path):
+    import doctor
+
+    cfg = tmp_path / "c.json"
+    cfg.write_text(json.dumps({"cloud_allowed_dirs": [str(tmp_path / "missing")]}), encoding="utf-8")
+    monkeypatch.setenv("PDF_PIPELINE_CONFIG", str(cfg))
+    assert doctor.main(["--json"]) == 0
+    assert doctor.main(["--strict", "--json"]) == 1

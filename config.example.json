@@ -1,8 +1,16 @@
 {
-  "_comment": "复制到配置目录下的 config.json 后按需修改（路径见 docs/cross-platform.md），或用环境变量 PDF_PIPELINE_CONFIG 指定。不要在这里写 token。",
+  "_comment": "复制到配置目录下的 config.json 后按需修改（路径见 docs/cross-platform.md），或用环境变量 PDF_PIPELINE_CONFIG 指定。排除名单优先于白名单。不要在这里写 token。",
   "cloud_allowed_dirs": [
     "~/Documents/Library/Standards",
     "~/Documents/Library/Books"
+  ],
+  "cloud_denied_dirs": [
+    "~/Documents/Library/Standards/内部发文"
+  ],
+  "cloud_denied_patterns": [
+    "*企业标准*",
+    "*内部*",
+    "*院发*"
   ],
   "output_dir": "~/Documents/pdf-exports",
   "mineru": {

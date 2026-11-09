@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.1
+
+来自 macOS 实机部署时的发现。
+
+### 新增
+- **mineru_cloud**：排除名单 `cloud_denied_dirs` / `cloud_denied_patterns`（通配符逐层匹配目录名与文件名），
+  优先于白名单，且 `--allow-outside-whitelist` 也不能绕过。起因：白名单里的"常用规范"目录下夹着企业标准、院内发文。
+- **doctor**：`--strict`，关键项不满足时退出码 1（默认仍只出报告、返回 0）；报告排除名单。
+
+### 修复
+- **doctor**：只查 PATH 上的 `java`，在 macOS 上会被 `/usr/bin/java` 占位程序误导，报"未找到 Java"。
+  现按 `JAVA_HOME` → `PATH` → `/usr/libexec/java_home` 查找，并列出被跳过的候选。
+
+### 文档
+- Agent skill 的质检一节补上 `clean_transcript.py` 清洗步骤；说明禁用串只填旧 OCR 层特有的错字，不能填原文水印。
+- 排坑指南：坑 4 补充院内发文的签署水印，坑 23 补充"白名单目录里夹着内部文件"。
+
 ## v0.3.0
 
 基于一轮多类样本实测（纯扫描、扫描+水印、扫描+隐形 OCR 层、SHX/TrueType 施工图、图文混排书籍、PPT 导出件，
