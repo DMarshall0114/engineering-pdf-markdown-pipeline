@@ -86,15 +86,28 @@ class _MuPdfDoc:
     def page(self, index: int) -> RawPage:
         fitz = self._fitz
         page = self._doc[index]
-        r = page.rect  # 已考虑旋转的可视矩形，文本坐标与之同一坐标系
+        r = page.rect  # 已考虑旋转的可视矩形
+        # PyMuPDF 抽取出的文字、图片坐标是"未旋转页面"坐标；/Rotate 页要乘 rotation_matrix 才落到可视页面上。
+        rotated = bool(page.rotation % 360)
+        to_visible = page.rotation_matrix
         text = page.get_text("text") or ""
         region_parts = []
+        words = page.get_text("words") if rotated else []
         for bx0, by0, bx1, by1 in TITLE_BLOCK_BOXES:
             clip = fitz.Rect(
                 r.x0 + r.width * bx0, r.y0 + r.height * by0,
                 r.x0 + r.width * bx1, r.y0 + r.height * by1,
             )
-            region_parts.append(page.get_text("text", clip=clip) or "")
+            if not rotated:
+                region_parts.append(page.get_text("text", clip=clip) or "")
+                continue
+            hits = []
+            for w in words:
+                wr = fitz.Rect(w[:4]) * to_visible
+                cx, cy = (wr.x0 + wr.x1) / 2, (wr.y0 + wr.y1) / 2
+                if clip.x0 <= cx <= clip.x1 and clip.y0 <= cy <= clip.y1:
+                    hits.append(w[4])
+            region_parts.append(" ".join(hits))
 
         try:
             content_bytes = len(page.read_contents() or b"")
@@ -114,7 +127,10 @@ class _MuPdfDoc:
         img_area = 0.0
         boxes: list[tuple[float, float, float, float, float]] = []
         for info in page.get_image_info():
-            bbox = fitz.Rect(info["bbox"]) & r
+            bbox = fitz.Rect(info["bbox"])
+            if rotated:
+                bbox = bbox * to_visible
+            bbox &= r
             if not bbox.is_empty:
                 area = bbox.width * bbox.height
                 img_area += area

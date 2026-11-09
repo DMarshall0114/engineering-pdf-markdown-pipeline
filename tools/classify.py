@@ -75,6 +75,10 @@ TITLE_BLOCK_WEAK = ["设计", "审核", "日期", "阶段", "专业", "工程名
 
 PROSE_PUNCT = set("。；，、：")
 _CJK_RE = re.compile(r"[㐀-䶿一-鿿豈-﫿\U00020000-\U0002fa1f]")
+# 同一个字母连续 6 次以上：缺字形时被替换成符号字体（如 ZapfDingbats 的 "n" = ■）的典型产物
+_REPEAT_LETTER_RE = re.compile(r"([A-Za-z])\1{5,}")
+# GBK/GB18030 字节被当成 Latin-1 解出来的乱码（"¸ßËÙÌú·"），只在整页没有汉字时计入
+_LATIN1_RE = re.compile(r"[\u0080-\u00ff]")
 _GARBLE_RE = re.compile(r"[�■□-\x00-\x08\x0b\x0c\x0e-\x1f]|\(cid:\d+\)")
 
 ENGINE_BY_CLASS = {
@@ -105,10 +109,17 @@ def count_chinese_chars(text: str) -> int:
 
 
 def garbled_ratio(text: str) -> float:
+    """乱码字符占比：替换符/方块/私用区/控制字符/(cid:N)，加上符号字体替换产生的长串重复字母，
+    以及整页无汉字时的 Latin-1 乱码（中文编码被错当西文解码）。"""
     stripped = re.sub(r"\s", "", text)
     if not stripped:
         return 0.0
     bad = sum(len(m) for m in _GARBLE_RE.findall(stripped))
+    bad += sum(len(m.group(0)) for m in _REPEAT_LETTER_RE.finditer(stripped))
+    if not _CJK_RE.search(stripped):
+        latin1 = len(_LATIN1_RE.findall(stripped))
+        if latin1 / len(stripped) >= 0.3:
+            bad += latin1
     return min(bad / len(stripped), 1.0)
 
 

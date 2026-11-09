@@ -35,6 +35,16 @@ def test_garbled_ratio():
     assert garbled_ratio("(cid:12)(cid:34)ab") > 0.5
 
 
+def test_garbled_ratio_symbol_font_and_mojibake():
+    # PyMuPDF 把 ZapfDingbats 替换字形抽成 "nnnn…"（pypdfium2 抽成 ■）
+    assert garbled_ratio("3.1.2 " + "n" * 40) > 0.5
+    mojibake = "高速铁路设计规范第三章总则".encode("gbk").decode("latin-1")
+    assert garbled_ratio(mojibake) > 0.5
+    # 正常西文、数字、带重音字母的人名不算乱码
+    assert garbled_ratio("The design shall comply with GB 50157-2013, 1000000 kN.") == 0
+    assert garbled_ratio("车辆基地 1000000 元，参见 Müller 2019") == 0
+
+
 def test_sample_spreads_across_document():
     idx = sample_indices(200, 10)
     assert idx[0] == 0 and idx[-1] == 199
