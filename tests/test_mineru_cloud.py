@@ -286,6 +286,8 @@ def test_find_java_prefers_java_home(tmp_path, monkeypatch):
     j = doctor.find_java({"JAVA_HOME": str(home)})
     assert j["major"] == 21 and j["source"] == "JAVA_HOME"
 
+    # 不让 macOS runner 上真实注册的 JDK（/usr/libexec/java_home）参与这一段
+    monkeypatch.setattr(doctor.sys, "platform", "linux")
     j = doctor.find_java({})
     assert j["major"] is None and any("解析不出版本" in t or "占位" in t for t in j["tried"])
 
