@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from add_frontmatter import build_frontmatter
 from clean_transcript import clean_text, clean_transcript_text, is_watermark_line
-from qa_check import BUILTIN_RULES, apply_fixes, compare_numbers, scan, text_stats
+from qa_check import BUILTIN_RULES, apply_fixes, check_clauses, compare_numbers, scan, scan_forbidden, text_stats
 from rebuild_headings import rebuild_headings
 
 
@@ -124,3 +124,36 @@ def test_frontmatter_merges_and_keeps_user_fields(tmp_path):
     # 幂等：再跑一次不会叠加
     again = build_frontmatter(out, str(pdf), None, None, now=now)
     assert again.count("---\n") == 2 and again.count("tags:") == 1
+
+
+# ------------------------------------------------------------ qa_check 新增：禁用串 / 条文连续性
+def test_forbidden_patterns_found_with_line_numbers():
+    hits = scan_forbidden("3.2.11 正确\n池（箱）周围Zm内\n标准号 CJ/T 521一2018", ["Zm内", "521一", "3.2.n"])
+    assert [(h["line"], h["match"]) for h in hits] == [(2, "Zm内"), (3, "521一")]
+
+
+def test_clause_continuity_detects_gap_duplicate_and_disorder():
+    text = "\n".join([
+        "## 3.1 一般规定", "3.1.1 应符合。", "**3.1.2** 宜设置。", "3.1.4 不应采用。",  # 缺 3.1.3
+        "3.2.1 甲。", "3.2.1 乙。",  # 重号
+        "3.1.5 迟到的条文。",
+        "| 3.9.9 | 表格行不计 |",
+        "目 次 3.4.1 一般规定……………12",
+        "条文说明",
+        "3.1.1 说明部分重新编号，不算重号。",
+    ])
+    r = check_clauses(text)
+    assert r["gaps"] == ["3.1.3"]
+    assert r["duplicates"] == ["3.2.1 (L6)"]
+    assert r["out_of_order"] == []  # 3.1.5 > 3.1.4，按节内递增仍合法
+    assert r["sections"] == 2 and r["clauses"] == 7
+
+
+def test_clause_out_of_order():
+    r = check_clauses("3.1.2 乙\n3.1.1 甲")
+    assert r["out_of_order"] == ["3.1.1 (L2)"] and r["gaps"] == ["3.1.1"]
+
+
+def test_references_inside_sentences_are_not_clauses():
+    r = check_clauses("应按本规范第3.2.5条执行。\n3.2.1 条文正文，见第 3.2.7 条。")
+    assert r["clauses"] == 1 and r["first"] == "3.2.1"  # 句中引用不计

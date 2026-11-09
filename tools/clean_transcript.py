@@ -27,6 +27,8 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from _compat import ensure_utf8_stdio
+
 CJK = r"㐀-䶿一-鿿豈-﫿"
 CJK_PUNCT = "，。、；：？！（）【】《》“”‘’…—"
 HSPACE = r"[ \t 　]"
@@ -230,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--strict", action="store_true", help="数字完整性校验失败时以退出码 3 结束")
     ap.add_argument("--demo", action="store_true", help="运行内置示例")
     args = ap.parse_args(argv)
+    ensure_utf8_stdio()
 
     if args.demo:
         cleaned, rep = clean_text(DEMO, reflow_lines=True)

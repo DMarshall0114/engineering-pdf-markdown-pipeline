@@ -23,6 +23,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from _compat import ensure_utf8_stdio
+
 CJK_RE = re.compile(r"[㐀-䶿一-鿿豈-﫿\U00020000-\U0002fa1f]")
 FM_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
 MANAGED_KEYS = ["title", "source_file", "source_sha256", "source_pages", "engine",
@@ -112,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--in-place", action="store_true", help="直接改写输入文件")
     g.add_argument("-o", "--output", help="输出文件（默认标准输出）")
     args = ap.parse_args(argv)
+    ensure_utf8_stdio()
 
     try:
         text = Path(args.markdown).read_text(encoding="utf-8")

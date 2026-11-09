@@ -24,6 +24,8 @@ import re
 import sys
 from pathlib import Path
 
+from _compat import ensure_utf8_stdio
+
 ZH_NUM = "一二三四五六七八九十百零〇"
 HS_CHARS = " \t\u3000"
 HS = f"[{HS_CHARS}]"
@@ -107,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
                     help="章对应的标题级别，默认 2（文档标题留给 #）")
     ap.add_argument("--no-bold-clause", action="store_true", help="条文编号不加粗")
     args = ap.parse_args(argv)
+    ensure_utf8_stdio()
 
     try:
         src = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
