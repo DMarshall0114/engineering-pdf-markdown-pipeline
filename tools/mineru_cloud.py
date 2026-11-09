@@ -10,6 +10,9 @@ mineru_cloud.py - 通过 MinerU 云 API 解析扫描件 / 带 OCR 层的扫描�
 几条经过实测的规矩（详见 docs/pitfalls.md 坑 12、16~23）：
 - 只上传白名单目录里的文件（配置 cloud_allowed_dirs）。未配置白名单时一律拒绝，
   确需上传白名单外的文件，必须显式加 --allow-outside-whitelist。
+- 排除名单优先于白名单，且没有任何参数可以绕过：cloud_denied_dirs（目录）与
+  cloud_denied_patterns（路径中任一层目录名或文件名匹配的通配符，如 "*企业标准*"）。
+  公开资料目录里常夹着内部文件（企业标准、院内发文），白名单按目录放行时要靠它挡住。
 - 扫描件自带的隐形 OCR 层错误集中在条文编号、尺寸、标准号上；重新识别时必须强制 OCR
   （is_ocr=true），否则引擎可能沿用那层文字。--ocr auto 会根据 classify 结果自动打开。
 - 整本一次提交，不要逐页提交：排队开销按次计，逐页提交慢两个数量级。
@@ -29,6 +32,7 @@ API 字段以 MinerU 官方文档为准（https://mineru.net/apiManage/docs）�
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -86,6 +90,19 @@ def is_allowed(path: str | os.PathLike, allowed_dirs: list[str]) -> bool:
         except ValueError:  # Windows 不同盘符
             continue
     return False
+
+
+def denied_reason(path: str | os.PathLike, denied_dirs: list[str], patterns: list[str]) -> str | None:
+    """命中排除名单时返回原因，否则 None。目录按包含关系判断；通配符逐层匹配目录名与文件名。"""
+    if is_allowed(path, denied_dirs):
+        return "位于 cloud_denied_dirs 内"
+    parts = Path(_norm(path)).parts
+    for pat in patterns:
+        npat = os.path.normcase(pat)
+        hit = next((x for x in parts if fnmatch.fnmatchcase(x, npat)), None)
+        if hit:
+            return f"路径中的「{hit}」匹配排除规则 {pat}"
+    return None
 
 
 # ------------------------------------------------------------------ token
@@ -385,6 +402,11 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_ARGS
 
     allowed = [str(d) for d in user_cfg.get("cloud_allowed_dirs") or []]
+    denied = denied_reason(pdf, [str(d) for d in user_cfg.get("cloud_denied_dirs") or []],
+                           [str(x) for x in user_cfg.get("cloud_denied_patterns") or []])
+    if denied:
+        log(f"拒绝上传：{denied}。排除名单优先于白名单，不能用参数绕过；如属误判请修改配置。")
+        return EXIT_REFUSED
     in_whitelist = is_allowed(pdf, allowed)
     if not in_whitelist and not args.allow_outside_whitelist:
         why = "未配置 cloud_allowed_dirs" if not allowed else "文件不在 cloud_allowed_dirs 内"
