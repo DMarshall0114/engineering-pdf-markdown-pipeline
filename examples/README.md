@@ -44,3 +44,16 @@ python tools/classify.py samples_out/ --format table
 | `scan_ocr.pdf` | 图像 + 隐形 OCR 文字层 | `scan_with_ocr_layer` |
 | `garbled.pdf` | 未嵌入 CJK 字体，抽取为 `■` | `garbled_text_layer` |
 | `mixed.pdf` | 文本 3 页 + 扫描 3 页 + 空白 + 文本 2 页 | `mixed`，三段 |
+
+## 3. 扫描件 + 隐形 OCR 层 (`scan-with-ocr-layer`)
+- **特征**：整页扫描图，上面叠一层渲染模式 3 的隐形文字（常见于下载的扫描版规范）。
+- **推荐策略**：`mineru-ocr`，**强制 OCR**（`tools/mineru_cloud.py --ocr auto` 会自动打开）。
+- **要点**：旧层正文看似干净，编号、尺寸、标准号却频繁出错；把核实过的旧层错字作为 `--forbid` 禁用串，验证新结果没有沿用旧层。
+
+## 4. PPT 导出件 / 图文混排 (`slides-with-figures`)
+- **特征**：原生标题与说明文字 + 大幅截图、效果图、平面图。
+- **推荐策略**：`opendataloader-fast` 抽文字，`figure_pages` 中的大图按外接框裁图后单独识别。
+
+## 5. 施工图 (`drawings`)
+- **SHX 字体图纸**：没有文字层，只有海量矢量路径 → `vector_only`，高分辨率分块渲染后识别，先图签/标题栏。
+- **TrueType 字体图纸**：有文字层但 88% 以上是 ≤6 字的短标注 → `drawing`，带坐标抽取并按图签区、说明区分组。

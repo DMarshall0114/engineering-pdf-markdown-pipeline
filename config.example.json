@@ -1,0 +1,20 @@
+{
+  "_comment": "复制到配置目录下的 config.json 后按需修改（路径见 docs/cross-platform.md），或用环境变量 PDF_PIPELINE_CONFIG 指定。不要在这里写 token。",
+  "cloud_allowed_dirs": [
+    "~/Documents/Library/Standards",
+    "~/Documents/Library/Books"
+  ],
+  "output_dir": "~/Documents/pdf-exports",
+  "mineru": {
+    "api_base": "https://mineru.net/api/v4",
+    "model_version": "vlm",
+    "language": "ch",
+    "enable_formula": true,
+    "enable_table": true,
+    "max_pages_per_file": 200,
+    "poll_interval": 10,
+    "timeout": 1800,
+    "keyring_service": "mineru-api",
+    "keyring_user": "token"
+  }
+}

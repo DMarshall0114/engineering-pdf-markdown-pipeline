@@ -13,7 +13,7 @@ import random
 import sys
 
 from PIL import Image, ImageDraw
-from reportlab.lib.pagesizes import A1, A4, landscape
+from reportlab.lib.pagesizes import A1, A3, A4, landscape
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
@@ -114,6 +114,42 @@ def _rotated_drawing_page(c: canvas.Canvas, seed: int = 0) -> None:
     c.restoreState()
 
 
+WATERMARK_LINES = [
+    "本资料仅供学习交流使用 请勿用于商业用途 某某资料共享平台",
+    "下载地址 www.example.com 更多资料请访问本站",
+]
+
+
+def _scan_watermark_page(c: canvas.Canvas, seed: int = 0) -> None:
+    """扫描图 + 压在上面的可见水印文字（每页相同），字符数超过有效文本阈值。"""
+    _scan_page(c, seed)
+    c.setFont(FONT, 9)
+    for i, line in enumerate(WATERMARK_LINES):
+        c.drawString(60, 20 + i * 12, line)
+
+
+SLIDE = (960, 540)  # 16:9 PPT 导出页
+
+
+def _slide_page(c: canvas.Canvas, seed: int = 0) -> None:
+    """标题 + 一张占页面约一半的效果图：原生文字可直取，图要另行识别，不应整页 OCR。"""
+    c.setPageSize(SLIDE)
+    c.setFont(FONT, 24)
+    c.drawString(60, 480, f"方案{seed + 1} 效果图")
+    c.drawImage(_scan_image(400, 300, seed), 180, 40, width=600, height=400)
+
+
+def _shx_drawing_page(c: canvas.Canvas, seed: int = 0) -> None:
+    """A3 横向、文字全部是矢量笔画（SHX 字体）：没有文本层，只有大量路径。"""
+    w, h = landscape(A3)
+    c.setPageSize((w, h))
+    rnd = random.Random(seed)
+    c.setLineWidth(0.2)
+    for _ in range(1500):
+        x, y = rnd.uniform(20, w - 20), rnd.uniform(20, h - 20)
+        c.line(x, y, x + rnd.uniform(-3, 3), y + rnd.uniform(-3, 3))
+
+
 def _garbled_page(c: canvas.Canvas) -> None:
     """未嵌入 CJK 字体 → 抽取得到占位方块，模拟缺失 ToUnicode 的"乱码文本层"。"""
     c.setFont("Helvetica", 10.5)
@@ -143,6 +179,9 @@ def build_all(out_dir: str) -> dict[str, str]:
     make("scan", [lambda c, i=i: _scan_page(c, i) for i in range(4)])
     make("scan_ocr", [lambda c, i=i: _scan_page(c, i, ocr_text=True) for i in range(3)])
     make("garbled", [_garbled_page for _ in range(3)])
+    make("scan_watermark", [lambda c, i=i: _scan_watermark_page(c, i) for i in range(4)])
+    make("slides", [lambda c, i=i: _slide_page(c, i) for i in range(4)])
+    make("drawing_shx", [lambda c, i=i: _shx_drawing_page(c, i) for i in range(2)])
     make("mixed", [
         *[lambda c, i=i: _spec_page(c, i) for i in range(3)],
         *[lambda c, i=i: _scan_page(c, i) for i in range(3)],

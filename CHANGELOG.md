@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.0
+
+基于一轮多类样本实测（纯扫描、扫描+水印、扫描+隐形 OCR 层、SHX/TrueType 施工图、图文混排书籍、PPT 导出件，
+共 70 余页逐页对照，分歧页逐页渲染人工核对）以及一次 99 页扫描规范的云端端到端实测。
+
+### 修复
+- **classify**：扫描件上压着每页相同的**可见**水印文字（约 90 字）时被判为文本页，整本只抽出水印。新增跨页重复行检测。
+- **classify**：图片覆盖阈值 60% → 85%。真实扫描页实测几乎都是 1.00；"标题 + 大幅效果图"的 PPT 页（覆盖 0.4~0.6）不再整页送 OCR。
+- **classify**：字少、无整页图的页（PPT 标题页、图题页）不再按扫描页处理，改为文本页 + 插图定位。
+- **classify**：大幅面图纸逐条统计矢量路径每页 1~4 秒，改为先读内容流字节数（与路径数 ρ≈0.98，快约 20 倍），超大页跳过计数。
+
+### 新增
+- **classify**：`pages[].figures` / `figure_pages`：文本页中 ≥15% 页面的插图外接框（可视坐标，已处理 `/Rotate`），图中文字另行识别。
+- **classify**：图幅改按毫米判断（长边 ≥415mm），大图幅 + 内容流 ≥30 万字节计入图纸分；输出 `long_side_mm`、`content_bytes`。
+- **tools/mineru_cloud.py**：MinerU 云 API 客户端（仅标准库）。目录白名单（未配置即拒绝）、token 取自环境变量或系统钥匙串且从不打印、
+  扫描件+OCR 层自动强制 OCR、mixed 文档只提交 OCR 页段、整本一次提交、防路径穿越解压、禁用串 / 条文连续性 / 逐页字数完整性质检、
+  `run_summary.json` 记录全部参数。
+- **tools/qa_check.py**：`--forbid` 禁用串、`--clauses` 条文编号连续性（跳号、重号、乱序；条文说明分段）。
+- **tools/doctor.py**：三平台环境自检。
+- **tools/_compat.py**：非交互输出统一 UTF-8；按平台定位配置文件；外部命令输出按正确编码解码。
+- **skills/pdf-to-markdown/SKILL.md**：三平台通用的 Agent 工作流。
+- `config.example.json`、`docs/cross-platform.md`；排坑指南新增坑 16~23；基准数据新增云 API 整本 vs 逐页、矢量计数耗时。
+- CI 扩展到 Ubuntu / Windows / macOS。
+
+### 兼容性
+- `classify.py` 输出 `schema_version` 升为 `"3"`，只新增字段，原有字段含义不变。
+- 阈值变化会改变少数页的判定（见上），依赖旧结果的下游请复核。
+
 ## v0.2.0
 
 ### 修复
